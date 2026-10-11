@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel — Sınaq Portalı</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .nav-sidebar { display:flex; flex-direction:column; gap:4px; }
+    .nav-item { padding:10px 14px; border-radius:8px; cursor:pointer; font-size:14px; font-weight:500; color:var(--text2); transition:all 0.2s; display:flex; align-items:center; gap:10px; }
+    .nav-item:hover { background:var(--bg3); color:var(--text); }
+    .nav-item.active { background:var(--accent-light); color:var(--accent); }
+    .page-section { display:none; }
+    .page-section.active { display:block; }
+    .user-table { width:100%; border-collapse:collapse; font-size:14px; }
+    .user-table th { background:var(--bg3); color:var(--text2); font-weight:500; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; padding:10px 14px; text-align:left; border-bottom:1px solid var(--border); }
+    .user-table td { padding:12px 14px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:middle; }
+    .user-table tr:last-child td { border-bottom:none; }
+    .user-table tr:hover td { background:var(--bg3); }
+    .status-badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+    .status-active { background:var(--green-light); color:var(--green); }
+    .status-blocked { background:var(--red-light); color:var(--red); }
+    .search-bar { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+    .search-bar input { flex:1; min-width:200px; }
+    .search-bar select { width:160px; }
+    .password-field { display:flex; align-items:center; gap:8px; }
+    .password-field span { font-family:monospace; background:var(--bg3); padding:4px 8px; border-radius:6px; font-size:13px; }
+    .eye-btn { background:none; border:none; cursor:pointer; color:var(--text3); font-size:16px; padding:4px; }
+    .stats-table { width:100%; border-collapse:collapse; font-size:14px; }
+    .stats-table th { background:var(--bg3); color:var(--text2); font-weight:500; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; padding:10px 14px; text-align:left; border-bottom:1px solid var(--border); }
+    .stats-table td { padding:12px 14px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:middle; }
+    .stats-table tr:last-child td { border-bottom:none; }
+    .stats-table tr:hover td { background:var(--bg3); }
+    .back-btn { display:flex; align-items:center; gap:8px; color:var(--text2); cursor:pointer; font-size:14px; margin-bottom:20px; }
+    .back-btn:hover { color:var(--text); }
+    .h-tabs { display:flex; gap:4px; margin-bottom:24px; border-bottom:1px solid var(--border); }
+    .h-tab { padding:10px 20px; cursor:pointer; font-size:14px; font-weight:500; color:var(--text2); border-bottom:2px solid transparent; transition:all 0.2s; }
+    .h-tab:hover { color:var(--text); }
+    .h-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+    .h-tab-content { display:none; }
+    .h-tab-content.active { display:block; }
+    .base-exam-item { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:16px 20px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
+    .base-exam-name { font-weight:600; font-size:15px; }
+    .base-exam-meta { font-size:13px; color:var(--text3); margin-top:4px; }
+    .q-view-item { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-bottom:16px; }
+    .q-view-img { width:100%; max-height:300px; object-fit:contain; border-radius:8px; border:1px solid var(--border); background:var(--bg3); margin:12px 0; }
+  </style>
+</head>
+<body>
+  <div style="display:grid; grid-template-columns:240px 1fr; min-height:100vh;">
+
+    <!-- Sol sidebar -->
+    <div style="background:var(--bg2); border-right:1px solid var(--border); padding:24px; display:flex; flex-direction:column; gap:20px;">
+      <div>
+        <div style="font-size:18px; font-weight:700; color:var(--accent); margin-bottom:4px;">📋 Sınaq Portalı</div>
+        <div style="font-size:12px; color:var(--text3);">Admin Panel</div>
+      </div>
+      <div class="panel-user">
+        <div class="label">İstifadəçi adı</div>
+        <div class="value" id="adminUsername">—</div>
+        <div class="role-badge admin">Admin</div>
+      </div>
+      <nav class="nav-sidebar">
+        <div class="nav-item active" id="nav-users" onclick="switchPage('users')">👥 User Control</div>
+        <div class="nav-item" id="nav-tests" onclick="switchPage('tests')">📝 Test İdarəetməsi</div>
+        <div class="nav-item" id="nav-exams" onclick="switchPage('exams')">📋 Mövcud Sınaqlar</div>
+        <div class="nav-item" id="nav-base" onclick="switchPage('base')">🗄️ Sınaqlar Bazası</div>
+        <div class="nav-item" id="nav-stats" onclick="switchPage('stats')">📊 Statistika</div>
+      </nav>
+      <div style="margin-top:auto;">
+        <button class="btn btn-danger" style="width:100%" onclick="doLogout()">Çıxış</button>
+      </div>
+    </div>
+
+    <!-- Əsas məzmun -->
+    <div style="padding:32px; overflow-y:auto;">
+
+      <!-- User Control -->
+      <div id="page-users" class="page-section active">
+        <div class="section-header">
+          <h2>👥 User Control</h2>
+          <button class="btn btn-primary" onclick="showCreateUserModal()">➕ Yeni İstifadəçi</button>
+        </div>
+        <div id="usersAlert" class="alert"></div>
+        <div class="search-bar">
+          <input type="text" id="searchInput" class="form-control" placeholder="İstifadəçi adı və ya ID..." oninput="loadUsers()">
+          <select id="filterSelect" class="form-control" onchange="loadUsers()">
+            <option value="">Hamısı</option>
+            <option value="active">Aktivlər</option>
+            <option value="blocked">Bloklananlar</option>
+          </select>
+        </div>
+        <div class="card" style="padding:0; overflow:hidden;">
+          <table class="user-table">
+            <thead>
+              <tr>
+                <th>ID</th><th>İstifadəçi adı</th><th>Rol</th><th>Şifrə</th><th>Status</th><th>Əməliyyat</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <tr><td colspan="6" style="text-align:center; color:var(--text3); padding:24px;">Yüklənir...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Test İdarəetməsi -->
+      <div id="page-tests" class="page-section">
+        <div class="section-header"><h2>📝 Test İdarəetməsi</h2></div>
+        <div id="mainAlert" class="alert"></div>
+        <div class="card">
+          <div class="card-title">➕ Sınaq Dəsti Yarat</div>
+          <div class="form-group">
+            <label>Sınaq Dəstinin Adı</label>
+            <input type="text" id="examName" class="form-control" placeholder="məs: Riyaziyyat Sınağı 1">
+          </div>
+          <button class="btn btn-primary" style="width:auto" onclick="createExamSet()">Yadda Saxla</button>
+        </div>
+        <div class="card">
+          <div class="card-title">⚙️ Sual Dəstinin Parametrləri</div>
+          <div class="form-group">
+            <label>Sınaq Dəstini Seç</label>
+            <select id="examSelect" class="form-control" onchange="loadExamQuestions()">
+              <option value="">— Seçin —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Sual Sayı</label>
+            <input type="number" id="questionCount" class="form-control" placeholder="məs: 20" min="1">
+          </div>
+          <div class="form-group">
+            <label>Sınağın Həll Olma Müddəti (dəqiqə)</label>
+            <input type="number" id="timeLimit" class="form-control" placeholder="məs: 60" min="1">
+          </div>
+          <div class="form-group">
+            <label>Sınağın Mövcud Olma Müddəti</label>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+              <div>
+                <label style="font-size:12px; color:var(--text3);">Başlanğıc</label>
+                <input type="datetime-local" id="startDate" class="form-control">
+              </div>
+              <div>
+                <label style="font-size:12px; color:var(--text3);">Son</label>
+                <input type="datetime-local" id="endDate" class="form-control">
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-success" style="width:auto" onclick="applyParams()">Parametrləri Tətbiq Et</button>
+        </div>
+        <div id="questionsSection" style="display:none">
+          <div class="section-header"><h2>❓ Suallar</h2></div>
+          <div id="questionsList"></div>
+          <button class="btn btn-success" onclick="saveQuestions()">💾 Sualları Yadda Saxla</button>
+        </div>
+      </div>
+
+      <!-- Mövcud Sınaqlar -->
+      <div id="page-exams" class="page-section">
+        <div class="section-header"><h2>📋 Mövcud Sınaqlar</h2></div>
+        <div id="examListSection"></div>
+      </div>
+
+      <!-- Sınaqlar Bazası -->
+      <div id="page-base" class="page-section">
+        <div class="section-header"><h2>🗄️ Sınaqlar Bazası</h2></div>
+
+        <!-- Horizontal tablar -->
+        <div class="h-tabs">
+          <div class="h-tab active" id="htab-list" onclick="switchBaseTab('list')">Baza Sınaqları</div>
+          <div class="h-tab" id="htab-create" onclick="switchBaseTab('create')">Baza Sınaq Sualları</div>
+        </div>
+
+        <!-- Baza Sınaqları -->
+        <div id="h-tab-list" class="h-tab-content active">
+          <div id="baseAlert" class="alert"></div>
+          <div class="search-bar">
+            <input type="text" id="baseSearchInput" class="form-control" placeholder="Ada görə axtar..." oninput="loadBaseExams()">
+          </div>
+
+          <!-- Sınaq siyahısı -->
+          <div id="baseExamsList" style="display:block">
+            <div id="baseExamsContainer"></div>
+          </div>
+
+          <!-- Sualları gör -->
+          <div id="baseQuestionsView" style="display:none">
+            <div class="back-btn" onclick="backToBaseList()">← Geri qayıt</div>
+            <h3 id="baseQViewTitle" style="margin-bottom:20px; font-size:18px; font-weight:600;"></h3>
+            <div id="baseQViewContainer"></div>
+          </div>
+        </div>
+
+        <!-- Baza Sınaq Sualları -->
+        <div id="h-tab-create" class="h-tab-content">
+          <div id="baseCreateAlert" class="alert"></div>
+
+          <div class="card">
+            <div class="card-title">➕ Sınaq Yarat</div>
+            <div class="form-group">
+              <label>Sınağın Adı</label>
+              <input type="text" id="baseExamName" class="form-control" placeholder="Sınağın adı">
+            </div>
+            <div class="form-group">
+              <label>Sual Sayı</label>
+              <input type="number" id="baseQuestionCount" class="form-control" placeholder="məs: 20" min="1">
+            </div>
+            <button class="btn btn-success" style="width:auto" onclick="createBaseExam()">Yarat</button>
+          </div>
+
+          <div class="card">
+            <div class="card-title">📂 Sınağı Seç</div>
+            <div class="form-group">
+              <select id="baseExamSelect" class="form-control" onchange="loadBaseExamQuestions()">
+                <option value="">— Sınaq seçin —</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="baseQuestionsEditSection" style="display:none">
+            <div class="section-header"><h2>❓ Suallar</h2></div>
+            <div id="baseQuestionsList"></div>
+            <button class="btn btn-success" onclick="saveBaseQuestions()">💾 Sualları Yadda Saxla</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Statistika -->
+      <div id="page-stats" class="page-section">
+        <div id="stats-list-view">
+          <div class="section-header"><h2>📊 Statistika</h2></div>
+          <div class="card" style="padding:0; overflow:hidden;">
+            <table class="stats-table">
+              <thead>
+                <tr><th>Sınağın Adı</th><th>Sual Sayı</th><th>Vaxt Limiti</th><th>Əməliyyat</th></tr>
+              </thead>
+              <tbody id="statsExamList">
+                <tr><td colspan="4" style="text-align:center; color:var(--text3); padding:24px;">Yüklənir...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div id="stats-detail-view" style="display:none">
+          <div class="back-btn" onclick="backToStatsList()">← Geri qayıt</div>
+          <div class="section-header"><h2 id="stats-detail-title">Statistika</h2></div>
+          <div class="card" style="padding:0; overflow:hidden;">
+            <table class="stats-table">
+              <thead>
+                <tr><th>İstifadəçi adı</th><th>Nəticə</th><th>Faiz</th><th>Sərf olunan vaxt</th><th>Tamamlanma tarixi</th></tr>
+              </thead>
+              <tbody id="statsDetailBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Aktivləşdir modal -->
+  <div class="modal-overlay" id="activateModal">
+    <div class="modal">
+      <div class="modal-title">🚀 Sınağı Aktivləşdir</div>
+      <div id="activateAlert" class="alert"></div>
+      <input type="hidden" id="activateBaseExamId">
+      <div class="form-group">
+        <label>Sınağın Adı</label>
+        <input type="text" id="activateName" class="form-control">
+      </div>
+      <div class="form-group">
+        <label>Həll Olma Müddəti (dəqiqə)</label>
+        <input type="number" id="activateTimeLimit" class="form-control" placeholder="məs: 60" min="1">
+      </div>
+      <div class="form-group">
+        <label>Mövcud Olma Müddəti</label>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label style="font-size:12px; color:var(--text3);">Başlanğıc</label>
+            <input type="datetime-local" id="activateStart" class="form-control">
+          </div>
+          <div>
+            <label style="font-size:12px; color:var(--text3);">Son</label>
+            <input type="datetime-local" id="activateEnd" class="form-control">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('activateModal')">Ləğv Et</button>
+        <button class="btn btn-success" onclick="activateBaseExam()">🚀 Aktivləşdir</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Yeni istifadəçi modal -->
+  <div class="modal-overlay" id="createUserModal">
+    <div class="modal">
+      <div class="modal-title">👤 Yeni İstifadəçi Yarat</div>
+      <div id="createUserAlert" class="alert"></div>
+      <div class="form-group">
+        <label>İstifadəçi Adı</label>
+        <input type="text" id="newUsername" class="form-control" placeholder="istifadəçi adı">
+      </div>
+      <div class="form-group">
+        <label>Şifrə</label>
+        <input type="password" id="newPassword" class="form-control" placeholder="şifrə">
+      </div>
+      <div class="form-group">
+        <label>Rol</label>
+        <select id="newRole" class="form-control">
+          <option value="user">İstifadəçi</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('createUserModal')">Ləğv Et</button>
+        <button class="btn btn-primary" onclick="createUser()">Yarat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Şifrə dəyiş modal -->
+  <div class="modal-overlay" id="changePasswordModal">
+    <div class="modal">
+      <div class="modal-title">🔑 Şifrəni Dəyiş</div>
+      <div id="changePasswordAlert" class="alert"></div>
+      <input type="hidden" id="changePasswordUserId">
+      <div class="form-group">
+        <label>Yeni Şifrə</label>
+        <input type="text" id="newPasswordInput" class="form-control" placeholder="yeni şifrə">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('changePasswordModal')">Ləğv Et</button>
+        <button class="btn btn-primary" onclick="savePassword()">Yadda Saxla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Redaktə modal -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <div class="modal-title">✏️ Sınaq Dəstini Redaktə Et</div>
+      <input type="hidden" id="editExamId">
+      <div class="form-group">
+        <label>Vaxt Limiti (dəqiqə)</label>
+        <input type="number" id="editTimeLimit" class="form-control">
+      </div>
+      <div class="form-group">
+        <label>Başlanğıc Tarixi</label>
+        <input type="datetime-local" id="editStartDate" class="form-control">
+      </div>
+      <div class="form-group">
+        <label>Son Tarix</label>
+        <input type="datetime-local" id="editEndDate" class="form-control">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('editModal')">Ləğv Et</button>
+        <button class="btn btn-success" onclick="saveEdit()">Yadda Saxla</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    let currentExamId = null;
+    let questionCount = 0;
+    let questions = [];
+    let baseQuestionCount = 0;
+    let baseQuestions = [];
+    let currentBaseExamId = null;
+
+    window.addEventListener('load', async () => {
+      const user = requireRole('admin');
+      if (!user) return;
+      document.getElementById('adminUsername').textContent = user.username;
+      await loadUsers();
+      await loadExamSets();
+    });
+
+    function switchPage(page) {
+      document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById(`page-${page}`).classList.add('active');
+      document.getElementById(`nav-${page}`).classList.add('active');
+      if (page === 'users') loadUsers();
+      if (page === 'exams') loadExamList();
+      if (page === 'stats') loadStatsList();
+      if (page === 'base') { loadBaseExams(); loadBaseExamSelect(); }
+    }
+
+    function switchBaseTab(tab) {
+      document.querySelectorAll('.h-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.h-tab-content').forEach(t => t.classList.remove('active'));
+      document.getElementById(`htab-${tab}`).classList.add('active');
+      document.getElementById(`h-tab-${tab}`).classList.add('active');
+    }
+
+    // ===== USER CONTROL =====
+    async function loadUsers() {
+      const search = document.getElementById('searchInput') ? document.getElementById('searchInput').value : '';
+      const filter = document.getElementById('filterSelect') ? document.getElementById('filterSelect').value : '';
+      try {
+        const params = new URLSearchParams();
+        if (search) params.append('search', search);
+        if (filter) params.append('filter', filter);
+        const users = await apiRequest('GET', `/auth/users?${params.toString()}`);
+        const tbody = document.getElementById('usersTableBody');
+        tbody.innerHTML = '';
+        if (users.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text3); padding:24px;">İstifadəçi tapılmadı.</td></tr>';
+          return;
+        }
+        users.forEach(u => {
+          tbody.innerHTML += `
+            <tr>
+              <td><span style="font-family:monospace; color:var(--text3)">#${u.id}</span></td>
+              <td><strong>${u.username}</strong></td>
+              <td><span class="role-badge ${u.role==='admin'?'admin':''}">${u.role==='admin'?'Admin':'User'}</span></td>
+              <td>
+                <div class="password-field">
+                  <span id="pwd_${u.id}">${'•'.repeat(8)}</span>
+                  <button class="eye-btn" onclick="togglePassword(${u.id}, '${u.plain_password||''}')">👁</button>
+                  <button class="btn btn-secondary btn-sm" onclick="openChangePassword(${u.id})">Dəyiş</button>
+                </div>
+              </td>
+              <td><span class="status-badge ${u.is_blocked?'status-blocked':'status-active'}">${u.is_blocked?'Bloklu':'Aktiv'}</span></td>
+              <td>
+                <div style="display:flex; gap:6px;">
+                  <button class="btn btn-sm ${u.is_blocked?'btn-success':'btn-danger'}" onclick="toggleBlock(${u.id}, ${u.is_blocked})">
+                    ${u.is_blocked?'🔓 Aç':'🔒 Blokla'}
+                  </button>
+                  <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id}, '${u.username}')">Sil</button>
+                </div>
+              </td>
+            </tr>`;
+        });
+      } catch (err) { showAlert('usersAlert', err.message); }
+    }
+
+    function togglePassword(id, pwd) {
+      const el = document.getElementById(`pwd_${id}`);
+      el.textContent = el.textContent.includes('•') ? (pwd || '(məlum deyil)') : '•'.repeat(8);
+    }
+
+    function openChangePassword(id) {
+      document.getElementById('changePasswordUserId').value = id;
+      document.getElementById('newPasswordInput').value = '';
+      document.getElementById('changePasswordModal').classList.add('show');
+    }
+
+    async function savePassword() {
+      const id = document.getElementById('changePasswordUserId').value;
+      const password = document.getElementById('newPasswordInput').value.trim();
+      if (!password) { showAlert('changePasswordAlert', 'Şifrə boş ola bilməz.'); return; }
+      try {
+        await apiRequest('PUT', `/auth/users/${id}/password`, { password });
+        showAlert('changePasswordAlert', 'Şifrə dəyişdirildi!', 'success');
+        setTimeout(() => { closeModal('changePasswordModal'); loadUsers(); }, 1000);
+      } catch (err) { showAlert('changePasswordAlert', err.message); }
+    }
+
+    async function toggleBlock(id, isBlocked) {
+      try {
+        await apiRequest('PUT', `/auth/users/${id}/block`, { is_blocked: !isBlocked });
+        await loadUsers();
+      } catch (err) { showAlert('usersAlert', err.message); }
+    }
+
+    async function deleteUser(id, username) {
+      if (!confirm(`"${username}" istifadəçisini silmək istədiyinizdən əminsiniz?`)) return;
+      try {
+        await apiRequest('DELETE', `/auth/users/${id}`);
+        await loadUsers();
+      } catch (err) { showAlert('usersAlert', err.message); }
+    }
+
+    function showCreateUserModal() {
+      document.getElementById('newUsername').value = '';
+      document.getElementById('newPassword').value = '';
+      document.getElementById('createUserModal').classList.add('show');
+    }
+
+    async function createUser() {
+      const username = document.getElementById('newUsername').value.trim();
+      const password = document.getElementById('newPassword').value;
+      const role = document.getElementById('newRole').value;
+      if (!username || !password) { showAlert('createUserAlert', 'Bütün sahələri doldurun.'); return; }
+      try {
+        await apiRequest('POST', '/auth/create-user', { username, password, role });
+        showAlert('createUserAlert', 'İstifadəçi yaradıldı!', 'success');
+        document.getElementById('newUsername').value = '';
+        document.getElementById('newPassword').value = '';
+        setTimeout(() => { closeModal('createUserModal'); loadUsers(); }, 1000);
+      } catch (err) { showAlert('createUserAlert', err.message); }
+    }
+
+    // ===== MÖVCUD SINAQLAR =====
+    async function loadExamList() {
+      try {
+        const exams = await apiRequest('GET', '/exams');
+        const section = document.getElementById('examListSection');
+        section.innerHTML = '';
+        if (exams.length === 0) {
+          section.innerHTML = '<div class="card" style="text-align:center; color:var(--text3)">Hələ heç bir sınaq yaradılmayıb.</div>';
+          return;
+        }
+        exams.forEach(exam => {
+          const now = new Date();
+          const start = new Date(exam.start_datetime);
+          const end = new Date(exam.end_datetime);
+          let statusBadge = '';
+          if (now < start) statusBadge = '<span class="status-badge" style="background:rgba(245,158,11,0.15);color:var(--yellow)">Gözləyir</span>';
+          else if (now > end) statusBadge = '<span class="status-badge status-blocked">Bitmişdir</span>';
+          else statusBadge = '<span class="status-badge status-active">Aktiv</span>';
+          section.innerHTML += `
+            <div class="exam-list-item">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+                <div>
+                  <div class="exam-name">${exam.name}</div>
+                  <div class="exam-meta">
+                    Sual: ${exam.actual_question_count} | Vaxt: ${exam.time_limit_minutes} dəq
+                    <br>Başlanğıc: ${formatDate(exam.start_datetime)}
+                    <br>Son: ${formatDate(exam.end_datetime)}
+                  </div>
+                </div>
+                ${statusBadge}
+              </div>
+              <div class="exam-list-actions" style="margin-top:10px;">
+                <button class="btn btn-danger btn-sm" onclick="deleteExam(${exam.id})">Sil</button>
+                <button class="btn btn-success btn-sm" onclick="openEditModal(${exam.id}, ${exam.time_limit_minutes}, '${exam.start_datetime}', '${exam.end_datetime}')">Redaktə</button>
+              </div>
+            </div>`;
+        });
+      } catch (err) {}
+    }
+
+    // ===== SINAQLAR BAZASI =====
+    async function loadBaseExams() {
+      const search = document.getElementById('baseSearchInput').value;
+      try {
+        const params = new URLSearchParams();
+        if (search) params.append('search', search);
+        const exams = await apiRequest('GET', `/base?${params.toString()}`);
+        const container = document.getElementById('baseExamsContainer');
+        container.innerHTML = '';
+        if (exams.length === 0) {
+          container.innerHTML = '<div class="card" style="text-align:center; color:var(--text3)">Baza sınağı tapılmadı.</div>';
+          return;
+        }
+        exams.forEach(exam => {
+          container.innerHTML += `
+            <div class="base-exam-item">
+              <div>
+                <div class="base-exam-name">${exam.name}</div>
+                <div class="base-exam-meta">Sual sayı: ${exam.actual_question_count}</div>
+              </div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn btn-secondary btn-sm" onclick="viewBaseQuestions(${exam.id}, '${exam.name}')">👁 Suallara bax</button>
+                <button class="btn btn-success btn-sm" onclick="openActivateModal(${exam.id}, '${exam.name}')">🚀 Aktivləşdir</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteBaseExam(${exam.id})">Sil</button>
+              </div>
+            </div>`;
+        });
+      } catch (err) { showAlert('baseAlert', err.message); }
+    }
+
+    async function viewBaseQuestions(examId, examName) {
+      try {
+        const qs = await apiRequest('GET', `/base/${examId}/questions`);
+        document.getElementById('baseExamsList').style.display = 'none';
+        document.getElementById('baseQuestionsView').style.display = 'block';
+        document.getElementById('baseQViewTitle').textContent = examName;
+        const container = document.getElementById('baseQViewContainer');
+        container.innerHTML = '';
+        if (qs.length === 0) {
+          container.innerHTML = '<div class="card" style="text-align:center; color:var(--text3)">Bu sınaqda sual yoxdur.</div>';
+          return;
+        }
+        qs.forEach((q, i) => {
+          const choices = ['A','B','C','D','E'];
+          let answerHtml = '';
+          if (q.question_type === 'multiple_choice') {
+            answerHtml = `<div style="margin-top:12px;">
+              <div style="font-size:12px; color:var(--text3); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Variantlar və Düzgün Cavab</div>
+              <div class="choices-group">
+                ${choices.map(c => `
+                  <div class="choice-item">
+                    <div class="choice-label">${c}</div>
+                    <div class="correct-choice-radio ${q.correct_answer.toUpperCase()===c?'is-correct':''}">
+                      ${q.correct_answer.toUpperCase()===c ? '✅ Düzgün cavab' : `${c} variantı`}
+                    </div>
+                  </div>`).join('')}
+              </div>
+            </div>`;
+          } else {
+            answerHtml = `<div style="margin-top:12px; padding:10px 14px; background:var(--green-light); border:1px solid var(--green); border-radius:8px; color:var(--green); font-weight:600;">
+              ✅ Düzgün cavab: ${q.correct_answer}
+            </div>`;
+          }
+          container.innerHTML += `
+            <div class="q-view-item">
+              <div class="question-label">Sual ${i+1} — ${q.question_type === 'multiple_choice' ? 'Çoxseçimli' : 'Açıq Cavab'}</div>
+              ${q.image_path ? `<img src="/${q.image_path}" class="q-view-img">` : '<div style="color:var(--text3); font-size:13px; margin:8px 0;">Şəkil yoxdur</div>'}
+              ${answerHtml}
+            </div>`;
+        });
+      } catch (err) { showAlert('baseAlert', err.message); }
+    }
+
+    function backToBaseList() {
+      document.getElementById('baseExamsList').style.display = 'block';
+      document.getElementById('baseQuestionsView').style.display = 'none';
+    }
+
+    function openActivateModal(examId, examName) {
+      document.getElementById('activateBaseExamId').value = examId;
+      document.getElementById('activateName').value = examName;
+      document.getElementById('activateTimeLimit').value = '';
+      document.getElementById('activateStart').value = '';
+      document.getElementById('activateEnd').value = '';
+      document.getElementById('activateModal').classList.add('show');
+    }
+
+    async function activateBaseExam() {
+      const id = document.getElementById('activateBaseExamId').value;
+      const name = document.getElementById('activateName').value.trim();
+      const timeLimit = document.getElementById('activateTimeLimit').value;
+      const start = document.getElementById('activateStart').value;
+      const end = document.getElementById('activateEnd').value;
+      if (!name || !timeLimit || !start || !end) {
+        showAlert('activateAlert', 'Bütün sahələri doldurun.');
+        return;
+      }
+      try {
+        await apiRequest('POST', `/base/${id}/activate`, {
+          name,
+          time_limit_minutes: parseInt(timeLimit),
+          start_datetime: new Date(start).toISOString(),
+          end_datetime: new Date(end).toISOString()
+        });
+        showAlert('activateAlert', `"${name}" sınağı uğurla aktivləşdirildi! ✅`, 'success');
+        setTimeout(() => closeModal('activateModal'), 2000);
+      } catch (err) { showAlert('activateAlert', err.message); }
+    }
+
+    async function deleteBaseExam(id) {
+      if (!confirm('Bu baza sınağını silmək istədiyinizdən əminsiniz?')) return;
+      try {
+        await apiRequest('DELETE', `/base/${id}`);
+        await loadBaseExams();
+        await loadBaseExamSelect();
+      } catch (err) { showAlert('baseAlert', err.message); }
+    }
+
+    async function loadBaseExamSelect() {
+      try {
+        const exams = await apiRequest('GET', '/base');
+        const select = document.getElementById('baseExamSelect');
+        const current = select.value;
+        select.innerHTML = '<option value="">— Sınaq seçin —</option>';
+        exams.forEach(exam => {
+          const opt = document.createElement('option');
+          opt.value = exam.id;
+          opt.textContent = `${exam.name} (${exam.actual_question_count} sual)`;
+          select.appendChild(opt);
+        });
+        if (current) select.value = current;
+      } catch (err) {}
+    }
+
+    async function createBaseExam() {
+      const name = document.getElementById('baseExamName').value.trim();
+      const qCount = parseInt(document.getElementById('baseQuestionCount').value);
+      if (!name || !qCount || qCount < 1) {
+        showAlert('baseCreateAlert', 'Ad və sual sayını daxil edin.');
+        return;
+      }
+      try {
+        await apiRequest('POST', '/base', { name, question_count: qCount });
+        showAlert('baseCreateAlert', `Sınaq "${name}" uğurla yaradıldı.`, 'success');
+        document.getElementById('baseExamName').value = '';
+        document.getElementById('baseQuestionCount').value = '';
+        await loadBaseExamSelect();
+        await loadBaseExams();
+      } catch (err) { showAlert('baseCreateAlert', err.message); }
+    }
+
+    async function loadBaseExamQuestions() {
+      const examId = document.getElementById('baseExamSelect').value;
+      if (!examId) {
+        document.getElementById('baseQuestionsEditSection').style.display = 'none';
+        return;
+      }
+      currentBaseExamId = examId;
+      try {
+        const qs = await apiRequest('GET', `/base/${examId}/questions`);
+        baseQuestions = qs;
+        const exam = await apiRequest('GET', `/base?`);
+        const selectedExam = (await apiRequest('GET', '/base')).find(e => e.id == examId);
+        baseQuestionCount = selectedExam ? selectedExam.question_count : qs.length;
+        if (qs.length > 0) baseQuestionCount = qs.length;
+        renderBaseQuestions();
+        document.getElementById('baseQuestionsEditSection').style.display = 'block';
+      } catch (err) {}
+    }
+
+    function renderBaseQuestions() {
+      const container = document.getElementById('baseQuestionsList');
+      container.innerHTML = '';
+      for (let i = 0; i < baseQuestionCount; i++) {
+        const q = baseQuestions[i] || {};
+        container.innerHTML += `
+          <div class="question-block" id="bqblock_${i}">
+            <div class="question-label">Sual ${i+1}</div>
+            ${q.image_path ? `<img src="/${q.image_path}" class="question-image-preview" id="bpreview_${i}">` : `<img class="question-image-preview" id="bpreview_${i}" style="display:none">`}
+            <div class="upload-area" onclick="document.getElementById('bfileInput_${i}').click()">📎 Şəkil seç və yerləşdir</div>
+            <input type="file" id="bfileInput_${i}" accept="image/*" style="display:none" onchange="previewBaseImage(${i})">
+            <div class="form-group" style="margin-top:16px">
+              <label>Sualın Tipi</label>
+              <select class="form-control" id="bqtype_${i}" onchange="renderBaseAnswerSection(${i})">
+                <option value="multiple_choice" ${q.question_type==='multiple_choice'?'selected':''}>Çoxseçimli</option>
+                <option value="open_answer" ${q.question_type==='open_answer'?'selected':''}>Açıq Cavab</option>
+              </select>
+            </div>
+            <div id="banswerSection_${i}"></div>
+          </div>`;
+      }
+      for (let i = 0; i < baseQuestionCount; i++) renderBaseAnswerSection(i);
+    }
+
+    function renderBaseAnswerSection(i) {
+      const type = document.getElementById(`bqtype_${i}`).value;
+      const q = baseQuestions[i] || {};
+      const correctAnswer = q.correct_answer || '';
+      const container = document.getElementById(`banswerSection_${i}`);
+      if (type === 'multiple_choice') {
+        const choices = ['A','B','C','D','E'];
+        container.innerHTML = `
+          <div class="form-group">
+            <label>Düzgün Variantı Seçin</label>
+            <div class="choices-group">
+              ${choices.map(c => `
+                <div class="choice-item">
+                  <div class="choice-label">${c}</div>
+                  <label class="correct-choice-radio ${correctAnswer.toUpperCase()===c?'is-correct':''}" id="bchoiceLabel_${i}_${c}">
+                    <input type="radio" name="bcorrect_${i}" value="${c}" ${correctAnswer.toUpperCase()===c?'checked':''} onchange="updateBaseChoiceStyle(${i})">
+                    Düzgün cavab ${c}-dir
+                  </label>
+                </div>`).join('')}
+            </div>
+          </div>`;
+      } else {
+        container.innerHTML = `
+          <div class="form-group" style="margin-top:16px">
+            <label>Düzgün Cavab</label>
+            <input type="text" class="form-control" id="bopenAnswer_${i}" placeholder="123 və ya 1.23" value="${correctAnswer}">
+          </div>`;
+      }
+    }
+
+    function updateBaseChoiceStyle(i) {
+      ['A','B','C','D','E'].forEach(c => {
+        const label = document.getElementById(`bchoiceLabel_${i}_${c}`);
+        const radio = label ? label.querySelector('input') : null;
+        if (label && radio) label.className = `correct-choice-radio ${radio.checked?'is-correct':''}`;
+      });
+    }
+
+    function previewBaseImage(i) {
+      const file = document.getElementById(`bfileInput_${i}`).files[0];
+      if (!file) return;
+      const preview = document.getElementById(`bpreview_${i}`);
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = 'block';
+    }
+
+    async function saveBaseQuestions() {
+      if (!currentBaseExamId) { showAlert('baseCreateAlert', 'Sınaq seçilməyib.'); return; }
+      const qs = [];
+      for (let i = 0; i < baseQuestionCount; i++) {
+        const type = document.getElementById(`bqtype_${i}`).value;
+        let correctAnswer = '';
+        let imagePath = baseQuestions[i] ? baseQuestions[i].image_path : null;
+        const fileInput = document.getElementById(`bfileInput_${i}`);
+        if (fileInput && fileInput.files[0]) {
+          try {
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+            const res = await fetch('/api/base/upload-image', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${getToken()}` },
+              body: formData
+            });
+            const data = await res.json();
+            imagePath = data.path;
+          } catch (err) { showAlert('baseCreateAlert', `Sual ${i+1}: şəkil yüklənə bilmədi.`); return; }
+        }
+        if (type === 'multiple_choice') {
+          const selected = document.querySelector(`input[name="bcorrect_${i}"]:checked`);
+          if (!selected) { showAlert('baseCreateAlert', `Sual ${i+1}: düzgün cavabı seçin.`); return; }
+          correctAnswer = selected.value;
+        } else {
+          correctAnswer = document.getElementById(`bopenAnswer_${i}`).value.trim();
+          if (!correctAnswer) { showAlert('baseCreateAlert', `Sual ${i+1}: düzgün cavabı daxil edin.`); return; }
+        }
+        if (!imagePath) { showAlert('baseCreateAlert', `Sual ${i+1}: şəkil yükləyin.`); return; }
+        qs.push({ order_number: i+1, image_path: imagePath, question_type: type, correct_answer: correctAnswer });
+      }
+      try {
+        await apiRequest('POST', `/base/${currentBaseExamId}/questions/bulk`, { questions: qs });
+        showAlert('baseCreateAlert', 'Suallar uğurla təyin edildi.', 'success');
+        await loadBaseExamSelect();
+        await loadBaseExamQuestions();
+      } catch (err) { showAlert('baseCreateAlert', err.message); }
+    }
+
+    // ===== STATİSTİKA =====
+    async function loadStatsList() {
+      try {
+        const exams = await apiRequest('GET', '/exams');
+        const tbody = document.getElementById('statsExamList');
+        tbody.innerHTML = '';
+        if (exams.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text3); padding:24px;">Sınaq tapılmadı.</td></tr>';
+          return;
+        }
+        exams.forEach(exam => {
+          tbody.innerHTML += `
+            <tr>
+              <td><strong>${exam.name}</strong></td>
+              <td>${exam.actual_question_count}</td>
+              <td>${exam.time_limit_minutes} dəq</td>
+              <td><button class="btn btn-primary btn-sm" onclick="loadStatsDetail(${exam.id}, '${exam.name}')">Statistika</button></td>
+            </tr>`;
+        });
+      } catch (err) {}
+    }
+
+    async function loadStatsDetail(examId, examName) {
+      try {
+        const stats = await apiRequest('GET', `/results/stats/${examId}`);
+        document.getElementById('stats-list-view').style.display = 'none';
+        document.getElementById('stats-detail-view').style.display = 'block';
+        document.getElementById('stats-detail-title').textContent = `📊 ${examName}`;
+        const tbody = document.getElementById('statsDetailBody');
+        tbody.innerHTML = '';
+        if (stats.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text3); padding:24px;">Bu sınağı hələ heç kim işləməyib.</td></tr>';
+          return;
+        }
+        stats.forEach(s => {
+          const percent = s.total_questions > 0 ? Math.round(s.correct_count / s.total_questions * 100) : 0;
+          const duration = Math.round(s.duration_seconds || 0);
+          const mins = Math.floor(duration / 60);
+          const secs = duration % 60;
+          const color = percent >= 60 ? 'var(--green)' : percent >= 40 ? 'var(--yellow)' : 'var(--red)';
+          tbody.innerHTML += `
+            <tr>
+              <td><strong>${s.username}</strong></td>
+              <td>${s.correct_count}/${s.total_questions}</td>
+              <td><span style="font-weight:700; color:${color}">${percent}%</span></td>
+              <td>${mins} dəq ${secs} san</td>
+              <td>${formatDate(s.finished_at)}</td>
+            </tr>`;
+        });
+      } catch (err) {}
+    }
+
+    function backToStatsList() {
+      document.getElementById('stats-list-view').style.display = 'block';
+      document.getElementById('stats-detail-view').style.display = 'none';
+    }
+
+    // ===== TEST İDARƏETMƏSİ =====
+    async function loadExamSets() {
+      try {
+        const exams = await apiRequest('GET', '/exams');
+        const select = document.getElementById('examSelect');
+        select.innerHTML = '<option value="">— Seçin —</option>';
+        exams.forEach(exam => {
+          const opt = document.createElement('option');
+          opt.value = exam.id;
+          opt.textContent = exam.name;
+          select.appendChild(opt);
+        });
+      } catch (err) {}
+    }
+
+    async function createExamSet() {
+      const name = document.getElementById('examName').value.trim();
+      if (!name) { showAlert('mainAlert', 'Sınaq adını daxil edin.'); return; }
+      try {
+        await apiRequest('POST', '/exams', {
+          name, time_limit_minutes: 60,
+          start_datetime: new Date().toISOString(),
+          end_datetime: new Date(Date.now() + 365*24*60*60*1000).toISOString()
+        });
+        document.getElementById('examName').value = '';
+        showAlert('mainAlert', 'Sınaq dəsti yaradıldı!', 'success');
+        await loadExamSets();
+      } catch (err) { showAlert('mainAlert', err.message); }
+    }
+
+    async function applyParams() {
+      const examId = document.getElementById('examSelect').value;
+      const qCount = parseInt(document.getElementById('questionCount').value);
+      const timeLimit = parseInt(document.getElementById('timeLimit').value);
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+      if (!examId) { showAlert('mainAlert', 'Sınaq dəstini seçin.'); return; }
+      if (!qCount || qCount < 1) { showAlert('mainAlert', 'Sual sayını daxil edin.'); return; }
+      if (!timeLimit) { showAlert('mainAlert', 'Vaxt limitini daxil edin.'); return; }
+      if (!startDate || !endDate) { showAlert('mainAlert', 'Tarixi daxil edin.'); return; }
+      try {
+        await apiRequest('PUT', `/exams/${examId}`, {
+          time_limit_minutes: timeLimit,
+          start_datetime: new Date(startDate).toISOString(),
+          end_datetime: new Date(endDate).toISOString()
+        });
+        currentExamId = examId;
+        questionCount = qCount;
+        questions = [];
+        renderQuestions();
+        document.getElementById('questionsSection').style.display = 'block';
+        showAlert('mainAlert', 'Parametrlər tətbiq edildi!', 'success');
+      } catch (err) { showAlert('mainAlert', err.message); }
+    }
+
+    async function loadExamQuestions() {
+      const examId = document.getElementById('examSelect').value;
+      if (!examId) return;
+      currentExamId = examId;
+      try {
+        const qs = await apiRequest('GET', `/exams/${examId}/questions`);
+        questions = qs;
+        if (qs.length > 0) {
+          questionCount = qs.length;
+          document.getElementById('questionCount').value = qs.length;
+          renderQuestions();
+          document.getElementById('questionsSection').style.display = 'block';
+        }
+      } catch (err) {}
+    }
+
+    function renderQuestions() {
+      const container = document.getElementById('questionsList');
+      container.innerHTML = '';
+      for (let i = 0; i < questionCount; i++) {
+        const q = questions[i] || {};
+        container.innerHTML += `
+          <div class="question-block" id="qblock_${i}">
+            <div class="question-label">Sual ${i+1}</div>
+            ${q.image_path ? `<img src="/${q.image_path}" class="question-image-preview" id="preview_${i}">` : `<img class="question-image-preview" id="preview_${i}" style="display:none">`}
+            <div class="upload-area" onclick="document.getElementById('fileInput_${i}').click()">📎 Şəkil seç və yerləşdir</div>
+            <input type="file" id="fileInput_${i}" accept="image/*" style="display:none" onchange="previewImage(${i})">
+            <div class="form-group" style="margin-top:16px">
+              <label>Sualın Tipi</label>
+              <select class="form-control" id="qtype_${i}" onchange="renderAnswerSection(${i})">
+                <option value="multiple_choice" ${q.question_type==='multiple_choice'?'selected':''}>Çoxseçimli</option>
+                <option value="open_answer" ${q.question_type==='open_answer'?'selected':''}>Açıq Cavab</option>
+              </select>
+            </div>
+            <div id="answerSection_${i}"></div>
+          </div>`;
+      }
+      for (let i = 0; i < questionCount; i++) renderAnswerSection(i);
+    }
+
+    function renderAnswerSection(i) {
+      const type = document.getElementById(`qtype_${i}`).value;
+      const q = questions[i] || {};
+      const correctAnswer = q.correct_answer || '';
+      const container = document.getElementById(`answerSection_${i}`);
+      if (type === 'multiple_choice') {
+        const choices = ['A','B','C','D','E'];
+        container.innerHTML = `
+          <div class="form-group">
+            <label>Düzgün Variantı Seçin</label>
+            <div class="choices-group">
+              ${choices.map(c => `
+                <div class="choice-item">
+                  <div class="choice-label">${c}</div>
+                  <label class="correct-choice-radio ${correctAnswer.toUpperCase()===c?'is-correct':''}" id="choiceLabel_${i}_${c}">
+                    <input type="radio" name="correct_${i}" value="${c}" ${correctAnswer.toUpperCase()===c?'checked':''} onchange="updateChoiceStyle(${i})">
+                    Düzgün cavab ${c}-dir
+                  </label>
+                </div>`).join('')}
+            </div>
+          </div>`;
+      } else {
+        container.innerHTML = `
+          <div class="form-group" style="margin-top:16px">
+            <label>Düzgün Cavab</label>
+            <input type="text" class="form-control" id="openAnswer_${i}" placeholder="123 və ya 1.23" value="${correctAnswer}">
+          </div>`;
+      }
+    }
+
+    function updateChoiceStyle(i) {
+      ['A','B','C','D','E'].forEach(c => {
+        const label = document.getElementById(`choiceLabel_${i}_${c}`);
+        const radio = label ? label.querySelector('input') : null;
+        if (label && radio) label.className = `correct-choice-radio ${radio.checked?'is-correct':''}`;
+      });
+    }
+
+    function previewImage(i) {
+      const file = document.getElementById(`fileInput_${i}`).files[0];
+      if (!file) return;
+      const preview = document.getElementById(`preview_${i}`);
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = 'block';
+    }
+
+    async function saveQuestions() {
+      if (!currentExamId) { showAlert('mainAlert', 'Sınaq seçilməyib.'); return; }
+      const qs = [];
+      for (let i = 0; i < questionCount; i++) {
+        const type = document.getElementById(`qtype_${i}`).value;
+        let correctAnswer = '';
+        let imagePath = questions[i] ? questions[i].image_path : null;
+        const fileInput = document.getElementById(`fileInput_${i}`);
+        if (fileInput && fileInput.files[0]) {
+          try { imagePath = await uploadImage(fileInput.files[0]); }
+          catch (err) { showAlert('mainAlert', `Sual ${i+1}: şəkil yüklənə bilmədi.`); return; }
+        }
+        if (type === 'multiple_choice') {
+          const selected = document.querySelector(`input[name="correct_${i}"]:checked`);
+          if (!selected) { showAlert('mainAlert', `Sual ${i+1}: düzgün cavabı seçin.`); return; }
+          correctAnswer = selected.value;
+        } else {
+          correctAnswer = document.getElementById(`openAnswer_${i}`).value.trim();
+          if (!correctAnswer) { showAlert('mainAlert', `Sual ${i+1}: düzgün cavabı daxil edin.`); return; }
+        }
+        if (!imagePath) { showAlert('mainAlert', `Sual ${i+1}: şəkil yükləyin.`); return; }
+        qs.push({ order_number: i+1, image_path: imagePath, question_type: type, correct_answer: correctAnswer });
+      }
+      try {
+        await apiRequest('POST', `/exams/${currentExamId}/questions/bulk`, { questions: qs });
+        showAlert('mainAlert', 'Suallar uğurla yadda saxlandı!', 'success');
+        await loadExamSets();
+        await loadExamQuestions();
+      } catch (err) { showAlert('mainAlert', err.message); }
+    }
+
+    async function deleteExam(id) {
+      if (!confirm('Bu sınaq dəstini silmək istədiyinizdən əminsiniz?')) return;
+      try {
+        await apiRequest('DELETE', `/exams/${id}`);
+        await loadExamList();
+        await loadExamSets();
+      } catch (err) {}
+    }
+
+    function openEditModal(id, timeLimit, startDate, endDate) {
+      document.getElementById('editExamId').value = id;
+      document.getElementById('editTimeLimit').value = timeLimit;
+      document.getElementById('editStartDate').value = new Date(startDate).toISOString().slice(0,16);
+      document.getElementById('editEndDate').value = new Date(endDate).toISOString().slice(0,16);
+      document.getElementById('editModal').classList.add('show');
+    }
+
+    async function saveEdit() {
+      const id = document.getElementById('editExamId').value;
+      const timeLimit = document.getElementById('editTimeLimit').value;
+      const startDate = document.getElementById('editStartDate').value;
+      const endDate = document.getElementById('editEndDate').value;
+      try {
+        await apiRequest('PUT', `/exams/${id}`, {
+          time_limit_minutes: parseInt(timeLimit),
+          start_datetime: new Date(startDate).toISOString(),
+          end_datetime: new Date(endDate).toISOString()
+        });
+        closeModal('editModal');
+        await loadExamList();
+        await loadExamSets();
+      } catch (err) { showAlert('mainAlert', err.message); }
+    }
+
+    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+    function doLogout() { clearAuth(); window.location.href = '/'; }
+  </script>
+</body>
+</html>

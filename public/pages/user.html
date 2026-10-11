@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sınaq Portalı</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .nav-tabs { display:flex; gap:8px; margin-bottom:24px; border-bottom:1px solid var(--border); padding-bottom:0; }
+    .nav-tab { padding:10px 20px; cursor:pointer; border-radius:8px 8px 0 0; font-weight:500; font-size:14px; color:var(--text2); border:1px solid transparent; border-bottom:none; transition:all 0.2s; }
+    .nav-tab.active { background:var(--bg2); border-color:var(--border); color:var(--accent); }
+    .nav-tab:hover { color:var(--text); }
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+
+    .result-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:16px; }
+    .result-card-header { padding:16px 20px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:background 0.2s; }
+    .result-card-header:hover { background:var(--bg3); }
+    .result-card-body { display:none; padding:16px 20px; border-top:1px solid var(--border); }
+    .result-card-body.open { display:block; }
+
+    .q-result-item { border-radius:var(--radius); padding:16px; margin-bottom:12px; border:1px solid var(--border); }
+    .q-result-item.correct { border-color:var(--green); background:var(--green-light); }
+    .q-result-item.wrong { border-color:var(--red); background:var(--red-light); }
+    .q-result-item.unanswered { border-color:var(--border); background:var(--bg3); }
+
+    .q-result-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+    .q-result-img { width:100%; max-height:250px; object-fit:contain; border-radius:8px; border:1px solid var(--border); background:var(--bg); margin-bottom:12px; }
+    .q-result-answers { display:flex; flex-direction:column; gap:6px; font-size:14px; }
+    .answer-row { display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:6px; }
+    .answer-row.user-ans { background:rgba(255,255,255,0.05); }
+    .answer-row.correct-ans { background:var(--green-light); color:var(--green); font-weight:600; }
+    .answer-row.wrong-ans { background:var(--red-light); color:var(--red); }
+    .expired-badge { font-size:12px; color:var(--text3); font-style:italic; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-content">
+      <!-- Tab naviqasiyası -->
+      <div class="nav-tabs">
+        <div class="nav-tab active" onclick="switchTab('exams')">📋 Sınaqlar</div>
+        <div class="nav-tab" onclick="switchTab('history')">📊 Tarixçə</div>
+      </div>
+
+      <div id="mainAlert" class="alert"></div>
+
+      <!-- Sınaqlar tab -->
+      <div id="tab-exams" class="tab-content active">
+        <div id="timerBox" style="display:none; margin-bottom:20px">
+          <div class="timer-display" id="timerDisplay">00:00</div>
+        </div>
+
+        <div id="examSelectSection">
+          <div class="card">
+            <div class="card-title">Sınaq Dəstini Seç</div>
+            <div class="form-group">
+              <select id="examSelect" class="form-control">
+                <option value="">— Sınaq seçin —</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" style="width:auto" onclick="startExam()">Sınağa Başla</button>
+          </div>
+        </div>
+
+        <div id="examSection" style="display:none">
+          <div id="questionsList"></div>
+          <div style="margin-top:24px; padding-bottom:40px">
+            <button class="btn btn-danger" onclick="submitExam()">🏁 Sınağı Bitir</button>
+          </div>
+        </div>
+
+        <div id="resultsSection" style="display:none">
+          <div class="card">
+            <div class="card-title">📊 Sınaq Nəticəsi</div>
+            <div id="resultsSummary" style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:16px"></div>
+          </div>
+          <button class="btn btn-secondary" style="margin-top:8px; margin-bottom:24px" onclick="backToExams()">← Sınaqlara Qayıt</button>
+        </div>
+      </div>
+
+      <!-- Tarixçə tab -->
+      <div id="tab-history" class="tab-content">
+        <div id="historyList"></div>
+      </div>
+    </div>
+
+    <!-- Sağ panel -->
+    <div class="sidebar">
+      <div class="panel-title">User Panel</div>
+      <div class="panel-user">
+        <div class="label">İstifadəçi adı</div>
+        <div class="value" id="userUsername">—</div>
+        <div class="role-badge">İstifadəçi</div>
+      </div>
+      <button class="btn btn-danger" style="width:100%" onclick="doLogout()">Çıxış</button>
+      <div class="uon-display">
+        <div class="label">ÜON — Ümumi Orta Nəticə</div>
+        <div class="value" id="uonValue">—</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    let currentExam = null;
+    let currentResultId = null;
+    let timerInterval = null;
+    let timeLeft = 0;
+    let userAnswers = {};
+    let currentQuestions = [];
+
+    window.addEventListener('load', async () => {
+      const user = requireRole('user');
+      if (!user) return;
+      document.getElementById('userUsername').textContent = user.username;
+      await loadAvailableExams();
+      await loadMyResults();
+    });
+
+    function switchTab(tab) {
+      document.querySelectorAll('.nav-tab').forEach((t, i) => {
+        t.classList.toggle('active', ['exams','history'][i] === tab);
+      });
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.getElementById(`tab-${tab}`).classList.add('active');
+      if (tab === 'history') loadHistory();
+    }
+
+    async function loadAvailableExams() {
+      try {
+        const exams = await apiRequest('GET', '/exams/available');
+        const select = document.getElementById('examSelect');
+        select.innerHTML = '<option value="">— Sınaq seçin —</option>';
+        exams.forEach(exam => {
+          const opt = document.createElement('option');
+          opt.value = exam.id;
+          opt.textContent = `${exam.name} — ${exam.time_limit_minutes} dəq${exam.already_done ? ' ✅' : ''}`;
+          opt.disabled = !!exam.already_done;
+          select.appendChild(opt);
+        });
+      } catch (err) {
+        showAlert('mainAlert', err.message);
+      }
+    }
+
+    async function loadMyResults() {
+      try {
+        const data = await apiRequest('GET', '/results/my');
+        document.getElementById('uonValue').textContent = `${data.uon}%`;
+      } catch (err) {}
+    }
+
+    async function loadHistory() {
+      try {
+        const data = await apiRequest('GET', '/results/my');
+        const container = document.getElementById('historyList');
+        container.innerHTML = '';
+
+        if (data.results.length === 0) {
+          container.innerHTML = '<div class="card" style="text-align:center; color:var(--text3)">Hələ heç bir sınaq işlənməyib.</div>';
+          return;
+        }
+
+        data.results.forEach(r => {
+          const finishedAt = new Date(r.finished_at);
+          const now = new Date();
+          const hoursPassed = (now - finishedAt) / (1000 * 60 * 60);
+          const canView = hoursPassed < 24;
+          const percent = r.total_questions > 0 ? Math.round(r.correct_count / r.total_questions * 100) : 0;
+
+          container.innerHTML += `
+            <div class="result-card">
+              <div class="result-card-header" onclick="toggleResult('result_${r.id}', ${r.exam_set_id}, ${canView})">
+                <div>
+                  <div style="font-weight:600; font-size:15px">${r.exam_name}</div>
+                  <div style="font-size:13px; color:var(--text3); margin-top:4px">
+                    ${formatDate(r.finished_at)}
+                    ${!canView ? '<span class="expired-badge"> — baxış müddəti bitib</span>' : ''}
+                  </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:16px">
+                  <div style="text-align:right">
+                    <div style="font-size:22px; font-weight:700; color:${percent>=60?'var(--green)':percent>=40?'var(--yellow)':'var(--red)'}">${percent}%</div>
+                    <div style="font-size:12px; color:var(--text3)">✅${r.correct_count} ❌${r.wrong_count} ⬜${r.unanswered_count}</div>
+                  </div>
+                  <span style="color:var(--text3)">${canView ? '▼' : '🔒'}</span>
+                </div>
+              </div>
+              <div class="result-card-body" id="result_${r.id}"></div>
+            </div>`;
+        });
+      } catch (err) {
+        showAlert('mainAlert', err.message);
+      }
+    }
+
+    async function toggleResult(elemId, examSetId, canView) {
+      const body = document.getElementById(elemId);
+      if (body.classList.contains('open')) {
+        body.classList.remove('open');
+        return;
+      }
+      if (!canView) {
+        showAlert('mainAlert', 'Bu sınağın baxış müddəti (24 saat) bitib.', 'error');
+        return;
+      }
+      if (body.innerHTML.trim() === '') {
+        await loadResultDetail(elemId, examSetId);
+      }
+      body.classList.add('open');
+    }
+
+    async function loadResultDetail(elemId, examSetId) {
+      try {
+        const detail = await apiRequest('GET', `/results/detail/${examSetId}`);
+        const body = document.getElementById(elemId);
+        body.innerHTML = '';
+
+        detail.forEach((d, i) => {
+          let cls = 'unanswered';
+          let icon = '⬜';
+          if (d.is_unanswered) { cls = 'unanswered'; icon = '⬜'; }
+          else if (d.is_correct) { cls = 'correct'; icon = '✅'; }
+          else { cls = 'wrong'; icon = '❌'; }
+
+          const userAnsDisplay = d.user_answer ? d.user_answer.toUpperCase() : '—';
+          const correctAnsDisplay = d.correct_answer ? d.correct_answer.toUpperCase() : d.correct_answer;
+
+          body.innerHTML += `
+            <div class="q-result-item ${cls}">
+              <div class="q-result-header">
+                <span style="font-weight:600">Sual ${i + 1} ${icon}</span>
+                <span class="result-badge ${cls === 'correct' ? 'badge-correct' : cls === 'wrong' ? 'badge-wrong' : 'badge-unanswered'}">
+                  ${cls === 'correct' ? 'Düzgün' : cls === 'wrong' ? 'Yanlış' : 'Cavabsız'}
+                </span>
+              </div>
+              ${d.image_path ? `<img src="/${d.image_path}" class="q-result-img">` : ''}
+              <div class="q-result-answers">
+                <div class="answer-row ${d.is_correct ? 'correct-ans' : d.is_unanswered ? '' : 'wrong-ans'}">
+                  <span>👤 Sizin cavabınız:</span>
+                  <strong>${userAnsDisplay}</strong>
+                </div>
+                ${!d.is_correct ? `
+                <div class="answer-row correct-ans">
+                  <span>✅ Doğru cavab:</span>
+                  <strong>${correctAnsDisplay}</strong>
+                </div>` : ''}
+              </div>
+            </div>`;
+        });
+      } catch (err) {
+        showAlert('mainAlert', 'Detallar yüklənə bilmədi.');
+      }
+    }
+
+    async function startExam() {
+      const examId = document.getElementById('examSelect').value;
+      if (!examId) { showAlert('mainAlert', 'Sınaq seçin.'); return; }
+      try {
+        const data = await apiRequest('POST', '/results/start', { exam_set_id: parseInt(examId) });
+        currentResultId = data.result_id;
+        currentExam = data.exam;
+        userAnswers = {};
+        const questions = await apiRequest('GET', `/exams/${examId}/questions`);
+        currentQuestions = questions;
+        document.getElementById('examSelectSection').style.display = 'none';
+        document.getElementById('examSection').style.display = 'block';
+        document.getElementById('timerBox').style.display = 'block';
+        renderQuestions(questions);
+        startTimer(currentExam.time_limit_minutes * 60);
+      } catch (err) {
+        showAlert('mainAlert', err.message);
+      }
+    }
+
+    function renderQuestions(questions) {
+      const container = document.getElementById('questionsList');
+      container.innerHTML = '';
+      questions.forEach((q, i) => {
+        let answerHtml = '';
+        if (q.question_type === 'multiple_choice') {
+          const choices = ['A', 'B', 'C', 'D', 'E'];
+          answerHtml = `<div class="choices-group">
+            ${choices.map(c => `
+              <div class="choice-item">
+                <div class="choice-label">${c}</div>
+                <label class="choice-radio" id="userChoice_${q.id}_${c}" onclick="selectChoice(${q.id}, '${c}')">
+                  <input type="radio" name="ans_${q.id}" value="${c}">
+                  ${c} variantı
+                </label>
+              </div>`).join('')}
+          </div>`;
+        } else {
+          answerHtml = `
+            <div class="form-group" style="margin-top:16px">
+              <label>Cavabınızı daxil edin</label>
+              <input type="text" class="form-control" id="openAns_${q.id}"
+                placeholder="123 və ya 1.23"
+                oninput="userAnswers[${q.id}] = this.value">
+            </div>`;
+        }
+        container.innerHTML += `
+          <div class="question-block" id="qblock_${q.id}">
+            <div class="question-label">Sual ${i + 1}</div>
+            <img src="/${q.image_path}" class="question-image-preview">
+            ${answerHtml}
+          </div>`;
+      });
+    }
+
+    function selectChoice(questionId, choice) {
+      userAnswers[questionId] = choice;
+      const choices = ['A', 'B', 'C', 'D', 'E'];
+      choices.forEach(c => {
+        const label = document.getElementById(`userChoice_${questionId}_${c}`);
+        if (label) label.className = `choice-radio ${c === choice ? 'selected' : ''}`;
+      });
+    }
+
+    function startTimer(seconds) {
+      timeLeft = seconds;
+      updateTimerDisplay();
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        updateTimerDisplay();
+        if (timeLeft <= 0) { clearInterval(timerInterval); submitExam(true); }
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const el = document.getElementById('timerDisplay');
+      el.textContent = formatTime(timeLeft);
+      el.className = 'timer-display';
+      if (timeLeft <= 60) el.className += ' danger';
+      else if (timeLeft <= 300) el.className += ' warning';
+    }
+
+    async function submitExam(auto = false) {
+      if (!auto && !confirm('Sınağı bitirmək istədiyinizdən əminsiniz?')) return;
+      clearInterval(timerInterval);
+      const answers = Object.entries(userAnswers).map(([qId, ans]) => ({
+        question_id: parseInt(qId), user_answer: ans
+      }));
+      try {
+        const data = await apiRequest('POST', `/results/${currentResultId}/submit`, { answers });
+        showSummary(data.summary);
+        await loadMyResults();
+        await loadAvailableExams();
+      } catch (err) {
+        showAlert('mainAlert', err.message);
+      }
+    }
+
+    function showSummary(s) {
+      document.getElementById('examSection').style.display = 'none';
+      document.getElementById('timerBox').style.display = 'none';
+      document.getElementById('resultsSection').style.display = 'block';
+      const percent = s.total > 0 ? Math.round(s.correct / s.total * 100) : 0;
+      document.getElementById('resultsSummary').innerHTML = `
+        <div class="card" style="flex:1; text-align:center; margin:0">
+          <div style="font-size:32px; font-weight:700; color:var(--green)">${s.correct}</div>
+          <div style="color:var(--text2)">✅ Düzgün</div>
+        </div>
+        <div class="card" style="flex:1; text-align:center; margin:0">
+          <div style="font-size:32px; font-weight:700; color:var(--red)">${s.wrong}</div>
+          <div style="color:var(--text2)">❌ Yanlış</div>
+        </div>
+        <div class="card" style="flex:1; text-align:center; margin:0">
+          <div style="font-size:32px; font-weight:700; color:var(--text3)">${s.unanswered}</div>
+          <div style="color:var(--text2)">⬜ Cavabsız</div>
+        </div>
+        <div class="card" style="flex:1; text-align:center; margin:0">
+          <div style="font-size:32px; font-weight:700; color:${percent>=60?'var(--green)':percent>=40?'var(--yellow)':'var(--red)'}">${percent}%</div>
+          <div style="color:var(--text2)">Nəticə</div>
+        </div>`;
+    }
+
+    function backToExams() {
+      document.getElementById('resultsSection').style.display = 'none';
+      document.getElementById('examSelectSection').style.display = 'block';
+    }
+
+    function doLogout() { clearAuth(); window.location.href = '/'; }
+  </script>
+</body>
+</html>

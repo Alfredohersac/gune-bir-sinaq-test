@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sınaq Portalı — Daxil Ol</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <div class="login-logo">
+        <h1>📋 Sınaq Portalı</h1>
+        <p>Hesabınıza daxil olun</p>
+      </div>
+
+      <div id="loginAlert" class="alert"></div>
+
+      <div class="form-group">
+        <label for="username">İstifadəçi Adı</label>
+        <input type="text" id="username" class="form-control" placeholder="istifadəçi adınızı daxil edin">
+      </div>
+
+      <div class="form-group">
+        <label for="password">Şifrə</label>
+        <input type="password" id="password" class="form-control" placeholder="şifrənizi daxil edin">
+      </div>
+
+      <button class="btn btn-primary" onclick="doLogin()">Daxil Ol</button>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    window.addEventListener('load', () => {
+      const user = getUser();
+      const token = getToken();
+      if (user && token) {
+        window.location.href = user.role === 'admin' ? '/admin' : '/user';
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doLogin();
+    });
+
+    async function doLogin() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const btn = document.querySelector('.btn-primary');
+
+      if (!username || !password) {
+        showAlert('loginAlert', 'İstifadəçi adı və şifrəni daxil edin.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Yüklənir...';
+
+      try {
+        const data = await apiRequest('POST', '/auth/login', { username, password });
+        saveAuth(data.token, data.user);
+        window.location.href = data.user.role === 'admin' ? '/admin' : '/user';
+      } catch (err) {
+        showAlert('loginAlert', err.message);
+        btn.disabled = false;
+        btn.textContent = 'Daxil Ol';
+      }
+    }
+  </script>
+</body>
+</html>
